@@ -8,3 +8,9 @@ typedef struct {
   pixel_t pixels[20];
 } digit_t;
 
+typedef struct {
+  int hours;
+  int minutes;
+  int seconds;
+} myTime_t;
+

@@ -3,9 +3,15 @@
 #include <WiFiClient.h>
 #include "esp32_digital_led_lib.h"
 #include "pixelDatatypes.h"
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 digit_t digits[10];
 
+#define NTP_OFFSET  1  * 60 * 60 // In seconds
+#define NTP_INTERVAL 60 * 1000    // In miliseconds
+#define NTP_ADDRESS  "de.pool.ntp.org"
+#define DST_PIN 2
 
 // Replace with your network credentials
 const char* ssid     = "Highway24";
@@ -14,12 +20,20 @@ const int INTEGRATED_LED =  2;
 const int LEDS_PIN =  16;
 const int LEDCOUNT = 105;
 
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, NTP_ADDRESS, NTP_OFFSET, NTP_INTERVAL);
+
+
 WiFiServer server(80);
 
 // Client variables 
 char linebuf[80];
 int charcount=0;
 strand_t pStrand = {.rmtChannel = 0, .gpioNum = LEDS_PIN, .ledType = LED_WS2812B_V3, .brightLimit = 32, .numPixels = LEDCOUNT, .pixels = nullptr, ._stateVars = nullptr};
+myTime_t currentTime = {.hours = 0, .minutes = 0, .seconds = 0};
+int timeFormat = 1;
+pixelColor_t timeColor = pixelFromRGB(10, 2, 1);
+pixelColor_t dotColor = pixelFromRGB(5, 0, 0);
 
 void setupLeds() {
   pinMode (LEDS_PIN, OUTPUT);
@@ -154,6 +168,7 @@ void listenforClients() {
           currentLineIsBlank = false;
         }
       }
+      updateTime();
     }
     // give the web browser time to receive the data
     delay(1);
@@ -193,7 +208,62 @@ void printDigit(int digit, int xOffset, pixelColor_t color) {
   }
 }
 
+void printTime(int change) {
+  if (timeFormat == 0) {
+    digitalLeds_resetPixels(&pStrand);
+    printDigit(currentTime.hours / 10, 0, timeColor);
+    printDigit(currentTime.hours % 10, 5, timeColor);
+    if (currentTime.seconds%2 == 0) {
+      setPixel(10, 1, dotColor);
+      setPixel(10, 3, dotColor);
+    }
+    printDigit(currentTime.minutes / 10, 12, timeColor);
+    printDigit(currentTime.minutes % 10, 17, timeColor);
+    digitalLeds_updatePixels(&pStrand);
+  }else if (timeFormat == 1 && change > 2) {
+    digitalLeds_resetPixels(&pStrand);
+    printDigit(currentTime.hours / 10, 0, timeColor);
+    printDigit(currentTime.hours % 10, 5, timeColor);
+    setPixel(10, 1, dotColor);
+    setPixel(10, 3, dotColor);
+    printDigit(currentTime.minutes / 10, 12, timeColor);
+    printDigit(currentTime.minutes % 10, 17, timeColor);
+    digitalLeds_updatePixels(&pStrand);
+  }
+}
+
+void updateTime(){
+  timeClient.update();
+  int hours = timeClient.getHours();
+  int minutes = timeClient.getMinutes();
+  int seconds = timeClient.getSeconds();
+  int change = 0;
+  if (hours != currentTime.hours){
+    change = 4;
+  } else if (minutes != currentTime.minutes){
+    change = 3;
+  } else if (seconds != currentTime.seconds){
+    change = 2;
+  }
+  
+  if(change > 0) {
+    currentTime.hours = hours;
+    currentTime.minutes = minutes;
+    currentTime.seconds = seconds;
+    String formattedTime = timeClient.getFormattedTime();
+    Serial.print(currentTime.hours);
+    Serial.print(":");
+    Serial.print(currentTime.minutes);
+    Serial.print(":");
+    Serial.print(currentTime.seconds);
+    Serial.print(" -- ");
+    Serial.println(formattedTime);
+    printTime(change);
+  }
+}
+
 void setup() {
+  timeClient.begin();
   // initialize the LEDs pins as an output:
   pinMode(INTEGRATED_LED, OUTPUT);
   
@@ -202,10 +272,20 @@ void setup() {
   while(!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
+
+  pinMode(DST_PIN, INPUT_PULLUP);
+  if(digitalRead(DST_PIN) != HIGH) {
+    Serial.println("Sommerzeit, GMT+2");
+    timeClient.setTimeOffset(2*NTP_OFFSET);
+  }else{
+    Serial.println("Winterzeit, GMT+1");
+  }
+  
   setupLeds();
   setupWifiServer();
 }
 
 void loop() {
   listenforClients();
+  updateTime();  
 }
