@@ -2,6 +2,10 @@
 #include <ESPmDNS.h>
 #include <WiFiClient.h>
 #include "esp32_digital_led_lib.h"
+#include "pixelDatatypes.h"
+
+digit_t digits[10];
+
 
 // Replace with your network credentials
 const char* ssid     = "Highway24";
@@ -27,6 +31,17 @@ void setupLeds() {
   }
   
   digitalLeds_resetPixels(&pStrand);
+
+  digits[0] = {.pixelCount = 14, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 0,.y = 1}, {.x = 3,.y = 1}, {.x = 0,.y = 2}, {.x = 3,.y = 2}, {.x = 0,.y = 3}, {.x = 3,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, {.x = 3,.y = 4}}};
+  digits[1] = {.pixelCount = 6 , .pixels = {{.x = 3,.y = 0}, {.x = 2,.y = 1}, {.x = 3,.y = 1}, {.x = 3,.y = 2}, {.x = 3,.y = 3}, {.x = 3,.y = 4}}};
+  digits[2] = {.pixelCount = 14, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 3,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 0,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, {.x = 3,.y = 4}}};
+  digits[3] = {.pixelCount = 13, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 3,.y = 1}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 3,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, {.x = 3,.y = 4}}};
+  digits[4] = {.pixelCount = 9 , .pixels = {{.x = 0,.y = 0}, {.x = 0,.y = 1}, {.x = 0,.y = 2}, {.x = 2,.y = 2}, {.x = 0,.y = 3}, {.x = 1,.y = 3}, {.x = 2,.y = 3}, {.x = 3,.y = 3}, {.x = 2,.y = 4}}};
+  digits[5] = {.pixelCount = 14, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 0,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 3,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, {.x = 3,.y = 4}}};
+  digits[6] = {.pixelCount = 15, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 0,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 0,.y = 3}, {.x = 3,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, {.x = 3,.y = 4}}};
+  digits[7] = {.pixelCount = 9 , .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 3,.y = 1}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 3,.y = 3}, {.x = 3,.y = 4}}};
+  digits[8] = {.pixelCount = 16, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 0,.y = 1}, {.x = 3,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 0,.y = 3}, {.x = 3,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, {.x = 3,.y = 4}}};
+  digits[9] = {.pixelCount = 15, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 0,.y = 1}, {.x = 3,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 3,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, {.x = 3,.y = 4}}};
 }
 
 void setupWifiServer() {
@@ -74,6 +89,7 @@ void buildWebpage(WiFiClient client) {
   client.println("<h1>ESP32 - Web Server</h1>");
   client.println("<p>LED #1 <a href=\"on1\"><button>ON</button></a>&nbsp;<a href=\"off1\"><button>OFF</button></a></p>");
   client.println("<p>LED #2 <a href=\"on2\"><button>ON</button></a>&nbsp;<a href=\"off2\"><button>OFF</button></a></p>");
+  client.println("<p>LED #2 <a href=\"set0\"><button>SET 0</button></a>&nbsp;<a href=\"reset\"><button>RESET</button></a></p>");
   client.println("</html>");
 }
 
@@ -85,11 +101,20 @@ void checkParameters() {
     Serial.println("LED 1 OFF");
     digitalWrite(INTEGRATED_LED, LOW);
   } else if (strstr(linebuf,"GET /on2") > 0) {
-    Serial.println("LED 2 ON");
+    Serial.println("LEDs GREEN");
     flushColor(pixelFromRGB(0, 255, 0));
   } else if (strstr(linebuf,"GET /off2") > 0) {
-    Serial.println("LED 2 OFF");
+    Serial.println("LEDs RED");
     flushColor(pixelFromRGB(255, 0, 0));
+  } else if (strstr(linebuf,"GET /reset") > 0) {
+    Serial.println("reset LEDs");
+    digitalLeds_resetPixels(&pStrand);
+  }else if (strstr(linebuf,"GET /set") > 0) {
+    int num = ((int)*(strstr(linebuf,"GET /set") + 8)+2)%10;
+    Serial.print("set LED-DIGIT to ");
+    Serial.print(num);
+    printDigit(num, 0, pixelFromRGB(150, 150, 0));
+    digitalLeds_updatePixels(&pStrand);
   }
 }
 
@@ -144,6 +169,28 @@ void flushColor(pixelColor_t color) {
     pStrand.pixels[i] = color;
   }  
   digitalLeds_updatePixels(&pStrand);
+}
+
+void setPixel(int x, int y, pixelColor_t color) {
+  if (x > 20) return;
+  if (y > 4) return;
+  if (x < 0) return;
+  if (y < 0) return;
+  int pos = 0;
+  if (y%2 == 0) {
+    pos = 21*y + x;  
+  } else {
+    pos = 21*(y+1) - (x+1);
+  }
+  pStrand.pixels[pos] = color;
+}
+
+void printDigit(int digit, int xOffset, pixelColor_t color) {
+  if (xOffset > 20) return;
+  if (xOffset < -3) return;
+  for (int i = 0; i < digits[digit].pixelCount; i++) {
+    setPixel(xOffset + digits[digit].pixels[i].x, digits[digit].pixels[i].y, color);
+  }
 }
 
 void setup() {
