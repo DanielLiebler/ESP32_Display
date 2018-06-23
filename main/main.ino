@@ -7,11 +7,19 @@
 #include <WiFiUdp.h>
 
 digit_t digits[10];
+digit_t digits_small[10];
+
+#define LOG
+#ifdef LOG
+  #define logLine(x) if(Serial.availableForWrite()>0) Serial.print(x);
+#else
+  #define logLine(x) ;
+#endif
 
 #define NTP_OFFSET  1  * 60 * 60 // In seconds
 #define NTP_INTERVAL 60 * 1000    // In miliseconds
 #define NTP_ADDRESS  "de.pool.ntp.org"
-#define DST_PIN 2
+#define DST_PIN 4
 
 // Replace with your network credentials
 const char* ssid     = "Highway24";
@@ -40,7 +48,7 @@ void setupLeds() {
   digitalWrite (LEDS_PIN, LOW);
 
   if (digitalLeds_initStrands(&pStrand, 1)) {
-    Serial.println("Init FAILURE: halting");
+    logLine("Init FAILURE: halting\n");
     while (true) {};
   }
   
@@ -56,35 +64,50 @@ void setupLeds() {
   digits[7] = {.pixelCount = 9 , .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 3,.y = 1}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 3,.y = 3}, {.x = 3,.y = 4}}};
   digits[8] = {.pixelCount = 16, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 0,.y = 1}, {.x = 3,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 0,.y = 3}, {.x = 3,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, {.x = 3,.y = 4}}};
   digits[9] = {.pixelCount = 15, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 3,.y = 0}, {.x = 0,.y = 1}, {.x = 3,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 3,.y = 2}, {.x = 3,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, {.x = 3,.y = 4}}};
+
+  digits_small[0] = {.pixelCount = 12, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 0,.y = 1}, {.x = 2,.y = 1}, {.x = 0,.y = 2}, {.x = 2,.y = 2}, {.x = 0,.y = 3}, {.x = 2,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}}};
+  digits_small[1] = {.pixelCount =  5, .pixels = {{.x = 2,.y = 0}, {.x = 2,.y = 1}, {.x = 2,.y = 2}, {.x = 2,.y = 3}, {.x = 2,.y = 4}}};
+  digits_small[2] = {.pixelCount =  9, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 2,.y = 1}, {.x = 1,.y = 2}, {.x = 0,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}}};
+  digits_small[3] = {.pixelCount = 10, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 2,.y = 1}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 2,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}}};
+  digits_small[4] = {.pixelCount =  9, .pixels = {{.x = 0,.y = 0}, {.x = 2,.y = 0}, {.x = 0,.y = 1}, {.x = 2,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 2,.y = 3}, {.x = 2,.y = 4}}};
+  digits_small[5] = {.pixelCount = 11, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 0,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 2,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}, }};
+  digits_small[6] = {.pixelCount = 12, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 0,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 0,.y = 3}, {.x = 2,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}}};
+  digits_small[7] = {.pixelCount =  8, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 2,.y = 1}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 2,.y = 3}, {.x = 2,.y = 4}}};
+  digits_small[8] = {.pixelCount = 13, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 0,.y = 1}, {.x = 2,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 0,.y = 3}, {.x = 2,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}}};
+  digits_small[9] = {.pixelCount = 12, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 0,.y = 1}, {.x = 2,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 2,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}}};
 }
 
 void setupWifiServer() {
   // We start by connecting to a WiFi network
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  
+  logLine("\n");
+  logLine("\n");
+  logLine("Connecting to ");
+  logLine(ssid);
+  logLine("\n");
+
   WiFi.begin(ssid, password);
+  
+  //digitalWrite(INTEGRATED_LED, HIGH);
   
   // attempt to connect to Wifi network:
   while(WiFi.status() != WL_CONNECTED) {
     // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
     delay(500);
-    Serial.print(".");
+    logLine(".");
   }
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+  logLine("\n");
+  logLine("WiFi connected\n");
+  logLine("IP address: \n");
+  logLine(WiFi.localIP());
+  logLine("\n");
 
   if (!MDNS.begin("esp32")) {
-    Serial.println("Error setting up MDNS responder!");
+    logLine("Error setting up MDNS responder!\n");
     while(1) {
       delay(1000);
     }
   }
-  Serial.println("mDNS responder started");
+  logLine("mDNS responder started\n");
   
   server.begin();
   
@@ -109,24 +132,24 @@ void buildWebpage(WiFiClient client) {
 
 void checkParameters() {
   if (strstr(linebuf,"GET /on1") > 0) {
-    Serial.println("LED 1 ON");
+    logLine("LED 1 ON\n");
     digitalWrite(INTEGRATED_LED, HIGH);
   } else if (strstr(linebuf,"GET /off1") > 0) {
-    Serial.println("LED 1 OFF");
+    logLine("LED 1 OFF\n");
     digitalWrite(INTEGRATED_LED, LOW);
   } else if (strstr(linebuf,"GET /on2") > 0) {
-    Serial.println("LEDs GREEN");
+    logLine("LEDs GREEN\n");
     flushColor(pixelFromRGB(0, 255, 0));
   } else if (strstr(linebuf,"GET /off2") > 0) {
-    Serial.println("LEDs RED");
+    logLine("LEDs RED\n");
     flushColor(pixelFromRGB(255, 0, 0));
   } else if (strstr(linebuf,"GET /reset") > 0) {
-    Serial.println("reset LEDs");
+    logLine("reset LEDs\n");
     digitalLeds_resetPixels(&pStrand);
   }else if (strstr(linebuf,"GET /set") > 0) {
     int num = ((int)*(strstr(linebuf,"GET /set") + 8)+2)%10;
-    Serial.print("set LED-DIGIT to ");
-    Serial.print(num);
+    logLine("set LED-DIGIT to ");
+    logLine(num);
     printDigit(num, 0, pixelFromRGB(150, 150, 0));
     digitalLeds_updatePixels(&pStrand);
   }
@@ -136,7 +159,7 @@ void listenforClients() {
   // listen for incoming clients
   WiFiClient client = server.available();
   if (client) {
-    Serial.println("New client");
+    logLine("New client\n");
     memset(linebuf,0,sizeof(linebuf));
     charcount=0;
     // an http request ends with a blank line
@@ -144,7 +167,7 @@ void listenforClients() {
     while (client.connected()) {
       if (client.available()) {
         char c = client.read();
-        Serial.write(c);
+        logLine(c);
         //read char by char HTTP request
         linebuf[charcount]=c;
         if (charcount<sizeof(linebuf)-1) charcount++;
@@ -175,7 +198,7 @@ void listenforClients() {
 
     // close the connection:
     client.stop();
-    Serial.println("client disconnected");
+    logLine("client disconnected\n");
   }
 }
 
@@ -251,13 +274,13 @@ void updateTime(){
     currentTime.minutes = minutes;
     currentTime.seconds = seconds;
     String formattedTime = timeClient.getFormattedTime();
-    Serial.print(currentTime.hours);
-    Serial.print(":");
-    Serial.print(currentTime.minutes);
-    Serial.print(":");
-    Serial.print(currentTime.seconds);
-    Serial.print(" -- ");
-    Serial.println(formattedTime);
+    logLine(currentTime.hours);
+    logLine(":");
+    logLine(currentTime.minutes);
+    logLine(":");
+    logLine(currentTime.seconds);
+    logLine(" -- ");
+    logLine(formattedTime);
     printTime(change);
   }
 }
@@ -266,23 +289,27 @@ void setup() {
   timeClient.begin();
   // initialize the LEDs pins as an output:
   pinMode(INTEGRATED_LED, OUTPUT);
-  
-  //Initialize serial and wait for port to open:
-  Serial.begin(115200);
-  while(!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
 
+  #ifdef LOG
+    //Initialize serial and wait for port to open:
+    Serial.begin(115200);
+    //while(!Serial) {
+      ; // wait for serial port to connect. Needed for native USB port only
+    //}
+  #endif
+
+  //-------
   pinMode(DST_PIN, INPUT_PULLUP);
   if(digitalRead(DST_PIN) != HIGH) {
-    Serial.println("Sommerzeit, GMT+2");
+    logLine("Sommerzeit, GMT+2 \n");
     timeClient.setTimeOffset(2*NTP_OFFSET);
   }else{
-    Serial.println("Winterzeit, GMT+1");
+    logLine("Winterzeit, GMT+1\n");
   }
   
   setupLeds();
   setupWifiServer();
+  digitalWrite(INTEGRATED_LED, LOW);
 }
 
 void loop() {
