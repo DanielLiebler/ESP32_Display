@@ -1,15 +1,21 @@
-#include <WiFi.h>
-#include <ESPmDNS.h>
-#include <WiFiClient.h>
-#include "esp32_digital_led_lib.h"
+#include <WiFi.h>												//NPT					mDNS	WebserverAsync	WebserverSync
+#include <ESPmDNS.h>										//						mDNS
+#include <WiFiClient.h>									//						mDNS
+#include <NTPClient.h>									//NPT
+#include <WiFiUdp.h>										//NPT
+#include <FS.h>													//									WebserverAsync
+#include <AsyncTCP.h>										//									WebserverAsync
+#include <ESPAsyncWebServer.h>					//									WebserverAsync
+#include "esp32_digital_led_lib.h"			//		WS2812
+
 #include "pixelDatatypes.h"
-#include <NTPClient.h>
-#include <WiFiUdp.h>
 
 digit_t digits[10];
 digit_t digits_small[10];
 
 #define LOG
+//#define LOG_TIME
+
 #ifdef LOG
   #define logLine(x) if(Serial.availableForWrite()>0) Serial.print(x);
 #else
@@ -31,8 +37,10 @@ const int LEDCOUNT = 105;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, NTP_ADDRESS, NTP_OFFSET, NTP_INTERVAL);
 
+const char HTML[] PROGMEM = "<!DOCTYPE HTML><html><link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css\" integrity=\"sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB\" crossorigin=\"anonymous\"><head><title>Control</title><link rel=\"shortcut icon\" href=\"https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Label-clock.svg/240px-Label-clock.svg.png\" type=\"image/png\"><link rel=\"shortcut icon\" href=\"https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Label-clock.svg/240px-Label-clock.svg.png\" type=\"image/png\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><div class=\"card\"><div class=\"card-header\"> <h1>Controls</h1> </div><div class=\"card-body\"><div class=\"input-group mb-3\"> <div class=\"input-group-prepend\"> <span class=\"input-group-text\">Brightness</span> </div><input type=\"range\" class=\"form-control custom-range\" id=\"brightness\" min=\"0\" max=\"255\" value=\"10\" onchange=\"document.getElementById('setBrightness').setAttribute('href', 'bright' + this.value);\"/> <div class=\"input-group-append\"><button id=\"setBrightness\" class=\"btn btn-secondary\" type=\"button\">SET</button> </div></div><div class=\"input-group mb-3\"> <div class=\"input-group-prepend\"> <span class=\"input-group-text\">LED #1</span> </div><button type=\"button\" class=\"btn btn-secondary form-control\">ON</button> <button type=\"button\" class=\"btn btn-secondary form-control\">OFF</button> </div><div class=\"input-group mb-3\"> <div class=\"input-group-prepend\"> <span class=\"input-group-text\">Full Color</span> </div><button type=\"button\" class=\"btn btn-success form-control\">GREEN</button> <button type=\"button\" class=\"btn btn-danger form-control\">RED</button> </div></div></div><i class=\"fas fa-clock\"></i><script src=\"https://code.jquery.com/jquery-3.3.1.slim.min.js\" integrity=\"sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo\" crossorigin=\"anonymous\"></script><script src=\"https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js\" integrity=\"sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49\" crossorigin=\"anonymous\"></script><script src=\"https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js\" integrity=\"sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T\" crossorigin=\"anonymous\"></script></html>";
 
-WiFiServer server(80);
+//WiFiServer server(80);
+AsyncWebServer server(80);
 
 // Client variables 
 char linebuf[80];
@@ -77,6 +85,26 @@ void setupLeds() {
   digits_small[9] = {.pixelCount = 12, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 0,.y = 1}, {.x = 2,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 2,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}}};
 }
 
+void setupAsyncServer() {
+	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+		int paramsNr = request->params();
+		if (paramsNr > 0) {
+			for(int i=0;i<paramsNr;i++){
+     		AsyncWebParameter* p = request->getParam(i);
+ 
+     		Serial.print("Param name: ");
+     		Serial.println(p->name());
+ 
+     		Serial.print("Param value: ");
+     		Serial.println(p->value());
+ 
+     		Serial.println("------");
+			}
+		}
+		request->send(200, "text/html", HTML);
+	});
+}
+
 void setupWifiServer() {
   // We start by connecting to a WiFi network
   logLine("\n");
@@ -109,97 +137,11 @@ void setupWifiServer() {
   }
   logLine("mDNS responder started\n");
   
+  setupAsyncServer();
   server.begin();
   
   // Add service to MDNS-SD
   MDNS.addService("http", "tcp", 80);
-}
-
-void buildWebpage(WiFiClient client) {
-  // send a standard http response header
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: text/html");
-  client.println("Connection: close");  // the connection will be closed after completion of the response
-  client.println();
-  client.println("<!DOCTYPE HTML><html><head>");
-  client.println("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>");
-  client.println("<h1>ESP32 - Web Server</h1>");
-  client.println("<p>LED #1 <a href=\"on1\"><button>ON</button></a>&nbsp;<a href=\"off1\"><button>OFF</button></a></p>");
-  client.println("<p>LED #2 <a href=\"on2\"><button>ON</button></a>&nbsp;<a href=\"off2\"><button>OFF</button></a></p>");
-  client.println("<p>LED #2 <a href=\"set0\"><button>SET 0</button></a>&nbsp;<a href=\"reset\"><button>RESET</button></a></p>");
-  client.println("</html>");
-}
-
-void checkParameters() {
-  if (strstr(linebuf,"GET /on1") > 0) {
-    logLine("LED 1 ON\n");
-    digitalWrite(INTEGRATED_LED, HIGH);
-  } else if (strstr(linebuf,"GET /off1") > 0) {
-    logLine("LED 1 OFF\n");
-    digitalWrite(INTEGRATED_LED, LOW);
-  } else if (strstr(linebuf,"GET /on2") > 0) {
-    logLine("LEDs GREEN\n");
-    flushColor(pixelFromRGB(0, 255, 0));
-  } else if (strstr(linebuf,"GET /off2") > 0) {
-    logLine("LEDs RED\n");
-    flushColor(pixelFromRGB(255, 0, 0));
-  } else if (strstr(linebuf,"GET /reset") > 0) {
-    logLine("reset LEDs\n");
-    digitalLeds_resetPixels(&pStrand);
-  }else if (strstr(linebuf,"GET /set") > 0) {
-    int num = ((int)*(strstr(linebuf,"GET /set") + 8)+2)%10;
-    logLine("set LED-DIGIT to ");
-    logLine(num);
-    printDigit(num, 0, pixelFromRGB(150, 150, 0));
-    digitalLeds_updatePixels(&pStrand);
-  }
-}
-
-void listenforClients() {
-  // listen for incoming clients
-  WiFiClient client = server.available();
-  if (client) {
-    logLine("New client\n");
-    memset(linebuf,0,sizeof(linebuf));
-    charcount=0;
-    // an http request ends with a blank line
-    boolean currentLineIsBlank = true;
-    while (client.connected()) {
-      if (client.available()) {
-        char c = client.read();
-        logLine(c);
-        //read char by char HTTP request
-        linebuf[charcount]=c;
-        if (charcount<sizeof(linebuf)-1) charcount++;
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the http request has ended,
-        // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
-          buildWebpage(client);
-          break;
-        }
-        if (c == '\n') {
-          // you're starting a new line
-          currentLineIsBlank = true;
-          checkParameters();
-          // you're starting a new line
-          currentLineIsBlank = true;
-          memset(linebuf,0,sizeof(linebuf));
-          charcount=0;
-        } else if (c != '\r') {
-          // you've gotten a character on the current line
-          currentLineIsBlank = false;
-        }
-      }
-      updateTime();
-    }
-    // give the web browser time to receive the data
-    delay(1);
-
-    // close the connection:
-    client.stop();
-    logLine("client disconnected\n");
-  }
 }
 
 void flushColor(pixelColor_t color) {
@@ -274,13 +216,16 @@ void updateTime(){
     currentTime.minutes = minutes;
     currentTime.seconds = seconds;
     String formattedTime = timeClient.getFormattedTime();
-    logLine(currentTime.hours);
-    logLine(":");
-    logLine(currentTime.minutes);
-    logLine(":");
-    logLine(currentTime.seconds);
-    logLine(" -- ");
-    logLine(formattedTime);
+    #ifdef LOG_TIME
+      logLine(currentTime.hours);
+      logLine(":");
+      logLine(currentTime.minutes);
+      logLine(":");
+      logLine(currentTime.seconds);
+      logLine(" -- ");
+      logLine(formattedTime);
+      logLine("\n");
+    #endif
     printTime(change);
   }
 }
@@ -298,7 +243,6 @@ void setup() {
     //}
   #endif
 
-  //-------
   pinMode(DST_PIN, INPUT_PULLUP);
   if(digitalRead(DST_PIN) != HIGH) {
     logLine("Sommerzeit, GMT+2 \n");
@@ -313,6 +257,6 @@ void setup() {
 }
 
 void loop() {
-  listenforClients();
-  updateTime();  
+  updateTime();
+  delay(100);
 }
