@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #include <WiFi.h>												//NPT					mDNS	              WebserverAsync
 #include <ESPmDNS.h>										//						mDNS
 #include <WiFiClient.h>									//						mDNS
