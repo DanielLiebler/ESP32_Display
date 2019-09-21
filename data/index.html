@@ -1,0 +1,54 @@
+<!DOCTYPE HTML>
+<html>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+  <head>
+    <title>Control</title>
+    <link rel="shortcut icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Label-clock.svg/240px-Label-clock.svg.png" type="image/png">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <div class="card">
+    <div class="card-header">
+      <h1>Controls</h1>
+    </div>
+    <div class="card-body">
+      <div class="input-group mb-3">
+        <div class="input-group-prepend">
+          <span class="input-group-text">Brightness</span>
+        </div>
+        <input type="range" class="form-control custom-range" id="brightness" min="0" max="255" value="%BRIGHTNESS_VALUE%"/>
+        <div class="input-group-append">
+          <button id="setBrightness" class="btn btn-secondary" type="button" onclick='$.get("/",{brightness: $("#brightness").val()});'>SET</button>
+        </div>
+      </div>
+      <div class="btn-group dropright">
+        <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> Mode </button>
+        <div class="dropdown-menu">
+          <button id="dropdownMode1" class="dropdown-item%DISPLAYMODE_1%" type="button" onclick='$.get("/",{displayMode: 1}); $("#dropdownMode1").addClass("active"); $("#dropdownMode2").removeClass("active"); $("#dropdownMode3").removeClass("active");'>Clock Mode 1</button>
+          <button id="dropdownMode2" class="dropdown-item%DISPLAYMODE_2%" type="button" onclick='$.get("/",{displayMode: 2}); $("#dropdownMode2").addClass("active"); $("#dropdownMode1").removeClass("active"); $("#dropdownMode3").removeClass("active");'>Clock Mode 2</button>
+          <button id="dropdownMode3" class="dropdown-item%DISPLAYMODE_3%" type="button" onclick='$.get("/",{displayMode: 3}); $("#dropdownMode3").addClass("active"); $("#dropdownMode1").removeClass("active"); $("#dropdownMode2").removeClass("active");'>Clock Mode 3</button>
+        </div>
+      </div>
+      <div class="input-group mb-3">
+        <div class="input-group-prepend">
+          <span class="input-group-text">LED #1</span>
+        </div>
+        <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{intergratedLed: "true"});'>ON</button>
+        <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{intergratedLed: "false"});'>OFF</button>
+      </div>
+      <div class="input-group mb-3">
+        <div class="input-group-prepend">
+          <span class="input-group-text">Full Color</span>
+        </div>
+        <button type="button" class="btn btn-success form-control" onclick='$.get("/",{fullColor: "true", fullColorR: 0, fullColorG: 255, fullColorB: 0});'>GREEN</button>
+        <button type="button" class="btn btn-danger form-control" onclick='$.get("/",{fullColor: "true", fullColorR: 255, fullColorG: 0, fullColorB: 0});'>RED</button>
+        <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{fullColor: "false"});'>OFF</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    
+  </script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
+</html>
