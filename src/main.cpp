@@ -7,71 +7,79 @@
 #include "SPIFFS.h"
 
 #include "pixelDatatypes.h"
-//#include "Adafruit_NeoPixel.h"
 #include <NeoPixelBus.h>
 
+//WIFI Credentials
 #define WIFI_SSID "Highway24"
 #define WIFI_PASS "grandwind673AC"
 
-#define MODE_CLOCK_1 1
-#define MODE_CLOCK_2 2
-#define MODE_CLOCK_3 3
-
+//Convert RGB Values to Color
 typedef RgbColor pixelColor_t;
+pixelColor_t colorFromRGB(uint8_t r, uint8_t g, uint8_t b) {
+  return RgbColor(r, g, b);
+}
 
+//display Modes
+#define MODE_CLOCK 1
+#define MODE_FULL_COLOR 2
+#define MODE_PICTURE 3
+#define MODE_GIF 4
+
+//clock Modes
+#define CLOCK_NORMAL 1
+#define CLOCK_NORMAL_STEADY 2
+#define CLOCK_FULL_SECONDS 3
+
+//HW Pinout
 const int INTEGRATED_LED =  2;
 const int LED_PIN1 =  4;
 const int LED_PIN2 =  16;
 const int LED_PIN3 =  17;
-const int LEDCOUNTPERROW = 21;//105;
+const int LEDCOUNTPERROW = 21;
 
-uint8_t displayMode_DEF = MODE_CLOCK_2;
-uint8_t brightness_DEF = 15;
+//default values
+const uint8_t displayMode_DEF = MODE_CLOCK;
+const uint8_t clockMode_DEF = CLOCK_NORMAL_STEADY;
+const uint8_t brightness_DEF = 15;
+const pixelColor_t color1_DEF = colorFromRGB(255, 70, 10);
+const pixelColor_t color2_DEF = colorFromRGB(255, 70, 10);
+const pixelColor_t color3_DEF = colorFromRGB(0, 100, 155);
+const pixelColor_t color4_DEF = colorFromRGB(0, 0, 255);
+const pixelColor_t colorFull_DEF = colorFromRGB(0, 0, 255);
 
-Timezone timezone;
-
-//Adafruit_NeoPixel strip(LEDCOUNT, LEDS_PIN, NEO_GRB + NEO_KHZ800);
+//Rows of Pixels as Strands
 NeoPixelBus<NeoGrbFeature, NeoEsp32Rmt0800KbpsMethod> strip1(LEDCOUNTPERROW*2, LED_PIN1);
 NeoPixelBus<NeoGrbFeature, NeoEsp32Rmt1800KbpsMethod> strip2(LEDCOUNTPERROW*2, LED_PIN2);
 NeoPixelBus<NeoGrbFeature, NeoEsp32Rmt2800KbpsMethod> strip3(LEDCOUNTPERROW, LED_PIN3);
-pixelColor_t colorFromRGB(uint8_t r, uint8_t g, uint8_t b) {
-  return RgbColor(r, g, b);
-}
-pixelColor_t color1_DEF = colorFromRGB(255, 70, 10);
-pixelColor_t color2_DEF = colorFromRGB(255, 70, 10);
-pixelColor_t color3_DEF = colorFromRGB(0, 100, 155);
-pixelColor_t color4_DEF = colorFromRGB(0, 0, 255);
-pixelColor_t colorFull_DEF = colorFromRGB(0, 0, 255);
-byte displayMode = displayMode_DEF;
+
+//Color variables
 byte brightness = brightness_DEF;
 pixelColor_t myColor1 = color1_DEF;
 pixelColor_t myColor2 = color2_DEF;
 pixelColor_t myColor3 = color3_DEF;
 pixelColor_t myColor4 = color4_DEF;
-bool colorFullEn = false;
-pixelColor_t colorFull = color1_DEF;
+pixelColor_t colorFull = colorFromRGB(255, 255, 255);
 
+//display & clock modes
+byte displayMode = displayMode_DEF;
+byte clockMode = clockMode_DEF;
 
-
-
+//hardcoded Font
+// (gets initialized in Function)
 digit_t digits[10];
 digit_t digits_small[10];
 
-artPage_t fuckYouList[] = {(artPage_t){0x21327A2Ful, 0xA271A0Aul, 0x1A0A210Eul, 0x327B61ul}, (artPage_t){0x4A442F51ul, 0x28444428ul, 0x4284444ul, 0x476F44ul}};
-artBook_t fuckYou = {.numPages=2, .pages=fuckYouList};
+//TZ stuff
+Timezone timezone;
 
+//Webserver object
 AsyncWebServer server(80);
 
-hw_timer_t * timer = NULL;
-volatile SemaphoreHandle_t timerSemaphore;
-volatile uint32_t isrCounter = 0;
-volatile uint32_t lastIsrAt = 0;
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-
+//Writing to Strands Async
 TaskHandle_t updateDisplayTask;
-portMUX_TYPE updateMux = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE updateStrandMux = portMUX_INITIALIZER_UNLOCKED;
 
-const char* PARAM_MESSAGE = "value";
+
 
 void setStripLed(uint16_t i, pixelColor_t color){
   if (i >= LEDCOUNTPERROW*5) return;
@@ -81,6 +89,29 @@ void setStripLed(uint16_t i, pixelColor_t color){
     strip2.SetPixelColor(i%(LEDCOUNTPERROW*2), color);
   } else {
     strip3.SetPixelColor(i%(LEDCOUNTPERROW*2), color);
+  }
+}
+void setPixel(int x, int y, pixelColor_t color) {
+  if (x > 20) return;
+  if (x < 0) return;
+  switch (y) {
+  case 0:
+    strip1.SetPixelColor(x, color);
+    break;
+  case 1:
+    strip1.SetPixelColor(x+21, color);
+    break;
+  case 2:
+    strip2.SetPixelColor(x, color);
+    break;
+  case 3:
+    strip2.SetPixelColor(x+21, color);
+    break;
+  case 4:
+    strip3.SetPixelColor(x, color);
+    break;
+  default:
+    break;
   }
 }
 void fillStrip(pixelColor_t color){
@@ -94,6 +125,7 @@ void clearStrip(){
   strip3.ClearTo(RgbColor(0, 0, 0));
 }
 void showStrip(){
+  //TODO currently not used, due to asyncronous updating of pixels
   //strip.Show();
 }
 
@@ -133,84 +165,6 @@ void setupLeds() {
   digits_small[9] = {.pixelCount = 12, .pixels = {{.x = 0,.y = 0}, {.x = 1,.y = 0}, {.x = 2,.y = 0}, {.x = 0,.y = 1}, {.x = 2,.y = 1}, {.x = 0,.y = 2}, {.x = 1,.y = 2}, {.x = 2,.y = 2}, {.x = 2,.y = 3}, {.x = 0,.y = 4}, {.x = 1,.y = 4}, {.x = 2,.y = 4}}};
 }
 
-void displayPage(bool binaryData[], pixelColor_t color) {
-  clearStrip();
-  for (int i = 0; i < 105; i++) {
-    if (binaryData[i]) setStripLed(i, color);
-  }
-  showStrip();
-}
-
-void toBool(artPage_t page, bool* binaryData) {
-  for (int i = 0; i < 5; i++) {
-    for (int j = 0; j < 3; j++) {
-      for (int k = 0; k < 7; k++) {
-        if (i%2 == 0) {
-          binaryData[i*21 + j * 7 + k] = (page.data[3*i + j] >> k)%2;
-        } else {
-          binaryData[i*21 + 20 - j * 7 - k] = (page.data[3*i + j] >> k)%2;
-        }
-      }
-    }
-  }
-}
-
-artPage_t parsePage(bool data[][21]) {
-  artPage_t binaryData;
-  binaryData.data[15] = 0;
-  for (int i = 0; i < 5; i++) {
-    for (int j = 0; j < 3; j++) {
-      binaryData.data[3*i + j] = 0;
-      for (int k = 0; k < 7; k++){
-        binaryData.data[3*i + j] += data[i][j*7+k] << k;
-      }
-    }
-  }
-  return binaryData;
-}
-
-void showArtBook(artBook_t artBook, int dly, pixelColor_t color) {
-  bool binaryData[105];
-  for (int i = 0; i < artBook.numPages; i++) {
-    toBool(artBook.pages[i], binaryData);
-    displayPage(binaryData, color);
-    //TODO Pages..
-  }
-}
-
-void flushColor(pixelColor_t color) {
-  fillStrip(color);
-  showStrip();
-}
-
-void updateColorFull() {
-  if (colorFullEn) {
-    flushColor(colorFull);
-  }
-}
-
-void setColorFull(pixelColor_t data) {
-  //preferences.begin("clock", false);
-  //colorFull = data;
-  //preferences.putUInt("colorFull", data.num);
-  //preferences.end();
-  updateColorFull();
-}
-
-void setPixel(int x, int y, pixelColor_t color) {
-  if (x > 20) return;
-  if (y > 4) return;
-  if (x < 0) return;
-  if (y < 0) return;
-  int pos = 0;
-  if (y%2 == 0) {
-    pos = 21*y + x;  
-  } else {
-    pos = 21*(y+1) - (x+1);
-  }
-  setStripLed(pos, color);
-}
-
 void printDigit(int digit, int xOffset, pixelColor_t color, digit_t font[]) {
   if (xOffset > 20) return;
   if (xOffset < -3) return;
@@ -219,44 +173,67 @@ void printDigit(int digit, int xOffset, pixelColor_t color, digit_t font[]) {
   }
 }
 
-pixelColor_t calcBrightness(byte bright, pixelColor_t color) {
-  return colorFromRGB(color.R*bright/100, color.G*bright/100, color.B*bright/100);
+//uses percentage brightness
+pixelColor_t calcBrightness(byte brightPercent, pixelColor_t color) {
+  return colorFromRGB(color.R*brightPercent/100, color.G*brightPercent/100, color.B*brightPercent/100);
 }
 
 void printTime() {
-  if (colorFullEn) return;
-  if (displayMode == MODE_CLOCK_1) {
-    clearStrip();
-    printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits);
-    printDigit(timezone.hour() % 10, 5, calcBrightness(brightness,myColor1), digits);
-    if (timezone.second()%2 == 0) {
+  portENTER_CRITICAL(&updateStrandMux);
+  switch (displayMode) {
+  case MODE_CLOCK:
+    switch (clockMode) {
+    case CLOCK_FULL_SECONDS:
+      clearStrip();
+      printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits_small);
+      printDigit(timezone.hour() % 10, 4, calcBrightness(brightness,myColor1), digits_small);
+      printDigit(timezone.minute() / 10, 7, calcBrightness(brightness,myColor2), digits_small);
+      printDigit(timezone.minute() % 10, 11, calcBrightness(brightness,myColor2), digits_small);
+      printDigit(timezone.second() / 10, 14, calcBrightness(brightness,myColor3), digits_small);
+      printDigit(timezone.second() % 10, 18, calcBrightness(brightness,myColor3), digits_small);
+      showStrip();
+      break;
+    case CLOCK_NORMAL:
+      clearStrip();
+      printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits);
+      printDigit(timezone.hour() % 10, 5, calcBrightness(brightness,myColor1), digits);
+      if (timezone.second()%2 == 0) {
+        setPixel(10, 1, calcBrightness(brightness,myColor2));
+        setPixel(10, 3, calcBrightness(brightness,myColor2));
+      }
+      printDigit(timezone.minute() / 10, 12, calcBrightness(brightness,myColor1), digits);
+      printDigit(timezone.minute() % 10, 17, calcBrightness(brightness,myColor1), digits);
+      showStrip();
+      break;
+    case CLOCK_NORMAL_STEADY:
+    default:
+      clearStrip();
+      printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits);
+      printDigit(timezone.hour() % 10, 5, calcBrightness(brightness,myColor1), digits);
       setPixel(10, 1, calcBrightness(brightness,myColor2));
       setPixel(10, 3, calcBrightness(brightness,myColor2));
+      printDigit(timezone.minute() / 10, 12, calcBrightness(brightness,myColor1), digits);
+      printDigit(timezone.minute() % 10, 17, calcBrightness(brightness,myColor1), digits);
+      showStrip();
+      break;
     }
-    printDigit(timezone.minute() / 10, 12, calcBrightness(brightness,myColor1), digits);
-    printDigit(timezone.minute() % 10, 17, calcBrightness(brightness,myColor1), digits);
+    break;
+  case MODE_PICTURE:
+    //TODO Picture Mode
+    break;
+  case MODE_GIF:
+    //TODO GIF Mode
+    break;
+  case MODE_FULL_COLOR:
+  default:
+    fillStrip(colorFull);
     showStrip();
-  }else if (displayMode == MODE_CLOCK_2) {
-    clearStrip();
-    printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits);
-    printDigit(timezone.hour() % 10, 5, calcBrightness(brightness,myColor1), digits);
-    setPixel(10, 1, calcBrightness(brightness,myColor2));
-    setPixel(10, 3, calcBrightness(brightness,myColor2));
-    printDigit(timezone.minute() / 10, 12, calcBrightness(brightness,myColor1), digits);
-    printDigit(timezone.minute() % 10, 17, calcBrightness(brightness,myColor1), digits);
-    showStrip();
-  }else if (displayMode == MODE_CLOCK_3) {
-    clearStrip();
-    printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits_small);
-    printDigit(timezone.hour() % 10, 4, calcBrightness(brightness,myColor1), digits_small);
-    printDigit(timezone.minute() / 10, 7, calcBrightness(brightness,myColor2), digits_small);
-    printDigit(timezone.minute() % 10, 11, calcBrightness(brightness,myColor2), digits_small);
-    printDigit(timezone.second() / 10, 14, calcBrightness(brightness,myColor3), digits_small);
-    printDigit(timezone.second() % 10, 18, calcBrightness(brightness,myColor3), digits_small);
-    showStrip();
+    break;
   }
+  portEXIT_CRITICAL(&updateStrandMux);
 }
 
+//Webserver functions
 void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
 }
@@ -266,18 +243,20 @@ String processor(const String& var) {
   if(var == "PLACEHOLDER") {
     return String(random(1,20));
   } else if(var == "BRIGHTNESS_VALUE")
-    return String(brightness); //F("20");
-  if(var == "DISPLAYMODE_1" && displayMode == MODE_CLOCK_1)
+    return String(brightness);
+  if(var == "CLOCK_NORMAL" && displayMode == CLOCK_NORMAL)
     return F(" active");
-  if(var == "DISPLAYMODE_2" && displayMode == MODE_CLOCK_2)
+  if(var == "CLOCK_NORMAL_STEADY" && displayMode == CLOCK_NORMAL_STEADY)
     return F(" active");
-  if(var == "DISPLAYMODE_3" && displayMode == MODE_CLOCK_3)
+  if(var == "CLOCK_FULL_SECONDS" && displayMode == CLOCK_FULL_SECONDS)
     return F(" active");
   return String();
-
 }
 void setDisplayMode(int p){
   displayMode = p;
+}
+void setClockMode(int p){
+  clockMode = p;
 }
 void set_Brightness(int p){
   brightness = p;
@@ -299,15 +278,19 @@ void setColor4(pixelColor_t p){
   myColor4 = p;
   printTime();
 }
+void setColorFull(pixelColor_t p){
+  colorFull = p;
+  printTime();
+}
 void checkParams(AsyncWebServerRequest *request) {
-  if(request->hasParam("dst")) {
-    //AsyncWebParameter* p = request->getParam("dst");
-    //setDst(p->value().equalsIgnoreCase("true"));
-    //printTime(8);
-  }
   if(request->hasParam("displayMode")) {
     AsyncWebParameter* p = request->getParam("displayMode");
     setDisplayMode(p->value().toInt());
+    printTime();
+  }
+  if(request->hasParam("clockMode")) {
+    AsyncWebParameter* p = request->getParam("clockMode");
+    setClockMode(p->value().toInt());
     printTime();
   }
   if(request->hasParam("brightness")) {
@@ -347,7 +330,6 @@ void checkParams(AsyncWebServerRequest *request) {
     AsyncWebParameter* p = request->getParam("intergratedLed");
     if(p->value().equalsIgnoreCase("true")) {
       digitalWrite(INTEGRATED_LED, HIGH);
-      showArtBook(fuckYou, 800, myColor4);
       printTime();
     } else {
       digitalWrite(INTEGRATED_LED, LOW);  
@@ -360,24 +342,9 @@ void checkParams(AsyncWebServerRequest *request) {
     setColorFull(colorFromRGB(r->value().toInt(), g->value().toInt(), b->value().toInt()));
     printTime();
   }
-  if(request->hasParam("fullColor")) {
-    AsyncWebParameter* p = request->getParam("fullColor");
-    colorFullEn = (p->value().equalsIgnoreCase("true"));
-    updateColorFull();
-  }
 }
 
-void IRAM_ATTR onTimer(){
-  // Increment the counter and set the time of ISR
-  portENTER_CRITICAL_ISR(&timerMux);
-  isrCounter++;
-  lastIsrAt = millis();
-  portEXIT_CRITICAL_ISR(&timerMux);
-  // Give a semaphore that we can check in the loop
-  xSemaphoreGiveFromISR(timerSemaphore, NULL);
-  // It is safe to use digitalRead/Write here if you want to toggle an output
-}
-
+//Timer for Async printing to strands
 TickType_t xLastWakeTime;
 const TickType_t xFrequency = 500 / portTICK_PERIOD_MS;
 void updateDisplayTaskFunction(void* parameter) {
@@ -389,11 +356,11 @@ void updateDisplayTaskFunction(void* parameter) {
   for( ;; )
   {
     //set_Brightness((brightness+2)%100);
-    portENTER_CRITICAL(&updateMux);
+    portENTER_CRITICAL(&updateStrandMux);
     strip1.Show();
     strip2.Show();
     strip3.Show();
-    portEXIT_CRITICAL(&updateMux);
+    portEXIT_CRITICAL(&updateStrandMux);
     if (i%myDivider == 0) {
       Serial.print("Average Time: ");
       Serial.print((millis()-lastTime)/myDivider);
@@ -401,7 +368,6 @@ void updateDisplayTaskFunction(void* parameter) {
       lastTime = millis();
     }
     i++;
-    //Serial.println("newFrame");
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
   vTaskDelete(NULL);
@@ -411,21 +377,6 @@ void setup() {
 
   pinMode(INTEGRATED_LED, OUTPUT);
   digitalWrite(INTEGRATED_LED, HIGH);
-  timerSemaphore = xSemaphoreCreateBinary();
-  // Create semaphore to inform us when the timer has fired
-  timerSemaphore = xSemaphoreCreateBinary();
-
-  // Use 1st timer of 4 (counted from zero).
-  // Set 80 divider for prescaler (see ESP32 Technical Reference Manual for more
-  // info).
-  timer = timerBegin(0, 80, true);
-
-  // Attach onTimer function to our timer.
-  timerAttachInterrupt(timer, &onTimer, true);
-
-  // Set alarm to call onTimer function every second (value in microseconds).
-  // Repeat the alarm (third parameter)
-  timerAlarmWrite(timer, 1000000, true);
 
 	Serial.begin(115200);
   
@@ -441,7 +392,7 @@ void setup() {
 	WiFi.begin(WIFI_SSID, WIFI_PASS);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.printf("WiFi Failed!\n");
-    //TODO Reboot
+    ESP.restart();
     return;
   }
   digitalWrite(INTEGRATED_LED, LOW);
@@ -460,10 +411,7 @@ void setup() {
 	Serial.println(timezone.dateTime());
 
 	// wait for time to cool down
-	//delay(1000);
-  
-  // Start an alarm
-  timerAlarmEnable(timer);
+	delay(1000);
   
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
@@ -479,49 +427,16 @@ void setup() {
   xTaskCreatePinnedToCore(updateDisplayTaskFunction, "updateDisplayTask", 1000, NULL, 1, &updateDisplayTask, 1);
 }
 
-int myCount = 0;
 void loop() {
 	//events();
-  if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE){
-
-    portENTER_CRITICAL(&updateMux);
-    printTime();
-    portEXIT_CRITICAL(&updateMux);
-    
-    uint32_t isrCount = 0, isrTime = 0;
-    portENTER_CRITICAL(&timerMux);
-    isrCount = isrCounter;
-    isrTime = lastIsrAt;
-    portEXIT_CRITICAL(&timerMux);
-    int divider = 10;
-    if (isrCount%divider == 0) {
-      Serial.print(ESP.getFreeHeap()/1024);
-      Serial.print("kB - ");
-      Serial.print(ESP.getMinFreeHeap()/1024);
-      Serial.print("kB - ");
-      //Serial.print(myCount/divider);
-      //Serial.println(" Loops/s");
-      Serial.print("NumTasks: ");
-      Serial.print(uxTaskGetNumberOfTasks());
-      Serial.print(" - ");
-      Serial.print(isrTime);
-      Serial.print("ms(");
-      Serial.print(isrCount);
-      Serial.println(")");
-
-      //Serial.println("----------------------------");
-      myCount = 0;
-    }
-  }
-  // If button is pressed
   if (false) {
-    // If timer is still running
-    if (timer) {
-      // Stop and free timer
-      timerEnd(timer);
-      timer = NULL;
-    }
+    Serial.print(ESP.getFreeHeap()/1024);
+    Serial.print("kB - ");
+    Serial.print(ESP.getMinFreeHeap()/1024);
+    Serial.print("kB - ");
+    Serial.print("NumTasks: ");
+    Serial.print(uxTaskGetNumberOfTasks());
+    Serial.println(")");
   }
-  myCount++;
   //strip.Show();
 }

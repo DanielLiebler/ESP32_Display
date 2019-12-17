@@ -21,16 +21,16 @@
         </div>
       </div>
       <div class="btn-group dropright">
-        <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> Mode </button>
+        <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> Clock Layout </button>
         <div class="dropdown-menu">
-          <button id="dropdownMode1" class="dropdown-item%DISPLAYMODE_1%" type="button" onclick='$.get("/",{displayMode: 1}); $("#dropdownMode1").addClass("active"); $("#dropdownMode2").removeClass("active"); $("#dropdownMode3").removeClass("active");'>Clock Mode 1</button>
-          <button id="dropdownMode2" class="dropdown-item%DISPLAYMODE_2%" type="button" onclick='$.get("/",{displayMode: 2}); $("#dropdownMode2").addClass("active"); $("#dropdownMode1").removeClass("active"); $("#dropdownMode3").removeClass("active");'>Clock Mode 2</button>
-          <button id="dropdownMode3" class="dropdown-item%DISPLAYMODE_3%" type="button" onclick='$.get("/",{displayMode: 3}); $("#dropdownMode3").addClass("active"); $("#dropdownMode1").removeClass("active"); $("#dropdownMode2").removeClass("active");'>Clock Mode 3</button>
+          <button id="dropdownMode1" class="dropdown-item%CLOCK_NORMAL%" type="button" onclick='$.get("/",{clockMode: 1}); $("#dropdownMode1").addClass("active"); $("#dropdownMode2").removeClass("active"); $("#dropdownMode3").removeClass("active");'>Default</button>
+          <button id="dropdownMode2" class="dropdown-item%CLOCK_NORMAL_STEADY%" type="button" onclick='$.get("/",{clockMode: 2}); $("#dropdownMode2").addClass("active"); $("#dropdownMode1").removeClass("active"); $("#dropdownMode3").removeClass("active");'>Default, no blink</button>
+          <button id="dropdownMode3" class="dropdown-item%CLOCK_FULL_SECONDS%" type="button" onclick='$.get("/",{clockMode: 3}); $("#dropdownMode3").addClass("active"); $("#dropdownMode1").removeClass("active"); $("#dropdownMode2").removeClass("active");'>HH MM SS</button>
         </div>
       </div>
       <div class="input-group mb-3">
         <div class="input-group-prepend">
-          <span class="input-group-text">LED #1</span>
+          <span class="input-group-text">onboard LED</span>
         </div>
         <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{intergratedLed: "true"});'>ON</button>
         <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{intergratedLed: "false"});'>OFF</button>
@@ -39,9 +39,10 @@
         <div class="input-group-prepend">
           <span class="input-group-text">Full Color</span>
         </div>
-        <button type="button" class="btn btn-success form-control" onclick='$.get("/",{fullColor: "true", fullColorR: 0, fullColorG: 255, fullColorB: 0});'>GREEN</button>
-        <button type="button" class="btn btn-danger form-control" onclick='$.get("/",{fullColor: "true", fullColorR: 255, fullColorG: 0, fullColorB: 0});'>RED</button>
-        <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{fullColor: "false"});'>OFF</button>
+        <button type="button" class="btn btn-light form-control" onclick='$.get("/",{displayMode: 2, fullColorR: 255, fullColorG: 255, fullColorB: 255});'>WHITE</button>
+        <button type="button" class="btn btn-success form-control" onclick='$.get("/",{displayMode: 2, fullColorR: 0, fullColorG: 255, fullColorB: 0});'>GREEN</button>
+        <button type="button" class="btn btn-danger form-control" onclick='$.get("/",{displayMode: 2, fullColorR: 255, fullColorG: 0, fullColorB: 0});'>RED</button>
+        <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{displayMode: 1});'>OFF</button>
       </div>
     </div>
   </div>
