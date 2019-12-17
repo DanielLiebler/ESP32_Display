@@ -1,0 +1,35 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558 
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "decode Stack Trace of Esp32 with addr2line",
+            "command": "C:\\Users\\Daniel Liebler\\.platformio\\packages\\toolchain-xtensa32\\bin\\xtensa-esp32-elf-addr2line.exe",
+            "args": [
+                "-pfiaC",
+                "-e",
+                "${workspaceFolder}\\.pio\\build\\nodemcu-32s\\firmware.elf",
+                "${input:HexCode}"
+            ],
+            "group": "none",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "HexCode",
+            "type": "promptString",
+            "description": "Enter the Hex Address"
+        }
+    ]
+}
