@@ -5,6 +5,8 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "SPIFFS.h"
+#include "gif.h"
+//#include "gif.cpp"
 
 #include "pixelDatatypes.h"
 #include <NeoPixelBus.h>
@@ -233,6 +235,23 @@ void printTime() {
   portEXIT_CRITICAL(&updateStrandMux);
 }
 
+bool processGif(String fname, gif_image_t* image) {
+  File gif_file = SPIFFS.open( fname, O_RDONLY );
+  fprintf(stderr, "Trying to open '%s'", fname);
+
+  if ( gif_file == -1 ) {
+    fprintf( stderr, "Unable to open file '%s'", fname );
+    perror( ": " );
+    return false;
+  }
+
+  bool state = process_gif_stream( gif_file, (gif_image_t*)image);
+
+  close( gif_file );
+  gif_file.close();
+  return state;
+}
+
 //Webserver functions
 void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
@@ -341,6 +360,17 @@ void checkParams(AsyncWebServerRequest *request) {
     AsyncWebParameter* b = request->getParam("fullColorB");
     setColorFull(colorFromRGB(r->value().toInt(), g->value().toInt(), b->value().toInt()));
     printTime();
+  }
+  if(request->hasParam("gif")) {
+    AsyncWebParameter* fname = request->getParam("gif");
+    gif_image_t* image = (gif_image_t*) malloc(sizeof(gif_image_t));
+    if (processGif(fname->value(), image)) {
+      Serial.println("Showing...");
+      Serial.println(image->screen_descriptor.width);
+      Serial.println(image->screen_descriptor.height);
+    } else {
+      Serial.println("Failed '" + fname->value() + "'");
+    }
   }
 }
 
