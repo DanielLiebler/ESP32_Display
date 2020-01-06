@@ -26,6 +26,7 @@ pixelColor_t colorFromRGB(uint8_t r, uint8_t g, uint8_t b) {
 #define MODE_FULL_COLOR 2
 #define MODE_PICTURE 3
 #define MODE_GIF 4
+#define MODE_TEST 5
 
 //clock Modes
 #define CLOCK_NORMAL 1
@@ -81,6 +82,8 @@ AsyncWebServer server(80);
 TaskHandle_t updateDisplayTask;
 portMUX_TYPE updateStrandMux = portMUX_INITIALIZER_UNLOCKED;
 
+volatile SemaphoreHandle_t updateTimeSemaphore;
+
 /*void heapcheck(String tag) {
   Serial.print("Heapcheck ");
   Serial.print(tag);
@@ -112,13 +115,13 @@ void setPixel(int x, int y, pixelColor_t color) {
     strip1.SetPixelColor(x, color);
     break;
   case 1:
-    strip1.SetPixelColor(x+21, color);
+    strip1.SetPixelColor(41-x, color);
     break;
   case 2:
     strip2.SetPixelColor(x, color);
     break;
   case 3:
-    strip2.SetPixelColor(x+21, color);
+    strip2.SetPixelColor(41-x, color);
     break;
   case 4:
     strip3.SetPixelColor(x, color);
@@ -197,6 +200,7 @@ void printTime() {
   case MODE_CLOCK:
     switch (clockMode) {
     case CLOCK_FULL_SECONDS:
+      //Serial.println("Clock_Sec");
       clearStrip();
       printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits_small);
       printDigit(timezone.hour() % 10, 4, calcBrightness(brightness,myColor1), digits_small);
@@ -207,6 +211,7 @@ void printTime() {
       showStrip();
       break;
     case CLOCK_NORMAL:
+      //Serial.println("Clock_Normal");
       clearStrip();
       printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits);
       printDigit(timezone.hour() % 10, 5, calcBrightness(brightness,myColor1), digits);
@@ -220,6 +225,7 @@ void printTime() {
       break;
     case CLOCK_NORMAL_STEADY:
     default:
+      //Serial.println("Clock_Steady");
       clearStrip();
       printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits);
       printDigit(timezone.hour() % 10, 5, calcBrightness(brightness,myColor1), digits);
@@ -232,13 +238,32 @@ void printTime() {
     }
     break;
   case MODE_PICTURE:
+      Serial.println("Picture");
     //TODO Picture Mode
     break;
   case MODE_GIF:
+      Serial.println("Gif");
     //TODO GIF Mode
+    break;
+  case MODE_TEST:
+    Serial.print(timezone.second());
+    Serial.print(" ");
+    clearStrip();
+    if (false) {
+      setStripLed(timezone.second(), colorFromRGB(255, 255, 255));
+      setStripLed(timezone.second()+42, colorFromRGB(255, 255, 255));
+      setStripLed(timezone.second()+84, colorFromRGB(255, 255, 255));
+    } else {
+      setPixel((timezone.second())%21, 0, colorFromRGB(250, 50, 0));
+      setPixel((timezone.second()-1)%21, 1, colorFromRGB(200, 100, 0));
+      setPixel((timezone.second()-2)%21, 2, colorFromRGB(150, 150, 0));
+      setPixel((timezone.second()-3)%21, 3, colorFromRGB(100, 200, 0));
+      setPixel((timezone.second()-4)%21, 4, colorFromRGB(50, 250, 0));
+    }
     break;
   case MODE_FULL_COLOR:
   default:
+    Serial.println("FullColor");
     fillStrip(colorFull);
     showStrip();
     break;
@@ -424,12 +449,15 @@ void updateDisplayTaskFunction(void* parameter) {
   int myDivider = 100;
   for( ;; )
   {
+    printTime();
     //set_Brightness((brightness+2)%100);
     portENTER_CRITICAL(&updateStrandMux);
     strip1.Show();
     strip2.Show();
     strip3.Show();
     portEXIT_CRITICAL(&updateStrandMux);
+    //xSemaphoreGiveFromISR(updateTimeSemaphore, NULL);
+
     if (i%myDivider == 0) {
       Serial.print("Average Time: ");
       Serial.print((millis()-lastTime)/myDivider);
@@ -446,6 +474,7 @@ void setup() {
 
   pinMode(INTEGRATED_LED, OUTPUT);
   digitalWrite(INTEGRATED_LED, HIGH);
+  updateTimeSemaphore = xSemaphoreCreateBinary();
 
 	Serial.begin(115200);
   
@@ -498,14 +527,11 @@ void setup() {
 
 void loop() {
 	//events();
-  if (false) {
-    Serial.print(ESP.getFreeHeap()/1024);
-    Serial.print("kB - ");
-    Serial.print(ESP.getMinFreeHeap()/1024);
-    Serial.print("kB - ");
-    Serial.print("NumTasks: ");
-    Serial.print(uxTaskGetNumberOfTasks());
-    Serial.println(")");
+  
+  if (xSemaphoreTake(updateTimeSemaphore, 0) == pdTRUE){
+    //printTime();
+    /*portENTER_CRITICAL(&updateStrandMux);
+    strip.Show();
+    portEXIT_CRITICAL(&updateStrandMux);*/
   }
-  //strip.Show();
 }

@@ -44,6 +44,15 @@
         <button type="button" class="btn btn-danger form-control" onclick='$.get("/",{displayMode: 2, fullColorR: 255, fullColorG: 0, fullColorB: 0});'>RED</button>
         <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{displayMode: 1});'>OFF</button>
       </div>
+      <div class="input-group mb-3">
+        <div class="input-group-prepend">
+          <span class="input-group-text">Alt Modes</span>
+        </div>
+        <button type="button" class="btn btn-light form-control" onclick='$.get("/",{displayMode: 3});'>Picture</button>
+        <button type="button" class="btn btn-success form-control" onclick='$.get("/",{displayMode: 4, gif: "/test.gif"});'>Test-Gif</button>
+        <button type="button" class="btn btn-danger form-control" onclick='$.get("/",{displayMode: 5});'>Test</button>
+        <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{displayMode: 1});'>OFF</button>
+      </div>
     </div>
   </div>
   <script>
