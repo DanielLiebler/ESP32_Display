@@ -81,7 +81,18 @@ AsyncWebServer server(80);
 TaskHandle_t updateDisplayTask;
 portMUX_TYPE updateStrandMux = portMUX_INITIALIZER_UNLOCKED;
 
-
+/*void heapcheck(String tag) {
+  Serial.print("Heapcheck ");
+  Serial.print(tag);
+  Serial.print(": ");
+  if (heap_caps_check_integrity_all(true)) {
+    Serial.println("OK");
+  } else {
+    Serial.println("FAILED");
+    //heap_caps_dump_all();
+    Serial.println("\n====================");
+  }
+}*/
 
 void setStripLed(uint16_t i, pixelColor_t color){
   if (i >= LEDCOUNTPERROW*5) return;
@@ -236,18 +247,39 @@ void printTime() {
 }
 
 bool processGif(String fname, gif_image_t* image) {
-  File gif_file = SPIFFS.open( fname, O_RDONLY );
-  fprintf(stderr, "Trying to open '%s'", fname);
+  Serial.println("==============================");
+  Serial.println("Current Filesystem:");
+  File root = SPIFFS.open("/");
+  File file = root.openNextFile();
+  while(file){
+      Serial.print("FILE: ");
+      Serial.print(file.name());
+      Serial.print(" - ");
+      Serial.println(file.available());
+      file.close();
+      file = root.openNextFile();
+  }
+  root.close();
+  Serial.println("==============================\n");
 
-  if ( gif_file == -1 ) {
-    fprintf( stderr, "Unable to open file '%s'", fname );
+
+  File gif_file = SPIFFS.open( fname, FILE_READ );
+  Serial.print("Trying to open ");
+  Serial.println(fname);
+
+  Serial.print("File readable?: ");
+  Serial.println(gif_file.available());
+
+  if ( !gif_file || !gif_file.available()) {
+    Serial.print("Unable to open file ");
+    Serial.println( fname );
     perror( ": " );
     return false;
   }
 
   bool state = process_gif_stream( gif_file, (gif_image_t*)image);
 
-  close( gif_file );
+  //close( gif_file );
   gif_file.close();
   return state;
 }
@@ -258,7 +290,7 @@ void notFound(AsyncWebServerRequest *request) {
 }
 
 String processor(const String& var) {
-  Serial.println(var);
+  //Serial.println(var);
   if(var == "PLACEHOLDER") {
     return String(random(1,20));
   } else if(var == "BRIGHTNESS_VALUE")
@@ -364,14 +396,20 @@ void checkParams(AsyncWebServerRequest *request) {
   if(request->hasParam("gif")) {
     AsyncWebParameter* fname = request->getParam("gif");
     gif_image_t* image = (gif_image_t*) malloc(sizeof(gif_image_t));
-    Serial.print("Processing...");
-    if (processGif(fname->value(), image)) {
-      Serial.println("Showing...");
-      Serial.println(image->screen_descriptor.width);
-      Serial.println(image->screen_descriptor.height);
-    } else {
-      Serial.println("Failed '" + fname->value() + "'");
+    Serial.println("Processing...");
+    heapcheck("1");
+    try {
+      if (processGif(fname->value(), image)) {
+        Serial.println("Showing...");
+        Serial.println(image->screen_descriptor.width);
+        Serial.println(image->screen_descriptor.height);
+      } else {
+        Serial.println("Failed '" + fname->value() + "'");
+      }
+    } catch(const std::exception& e) {
+      Serial.println(e.what());
     }
+    heapcheck("end");
   }
 }
 

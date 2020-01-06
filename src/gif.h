@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "SPIFFS.h"
 
 #define GRAPHIC_CONTROL        0xF9
 #define APPLICATION_EXTENSION  0xFF
@@ -92,4 +93,5 @@ typedef struct {
   block_list_t* lastBlock;
 } gif_image_t;
 
-bool process_gif_stream( int gif_file, gif_image_t* image);
+bool process_gif_stream( File gif_file, gif_image_t* image);
+void heapcheck(String tag);
