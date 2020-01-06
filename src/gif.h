@@ -94,4 +94,4 @@ typedef struct {
 } gif_image_t;
 
 bool process_gif_stream( File gif_file, gif_image_t* image);
-void heapcheck(String tag);
+//void heapcheck(String tag);

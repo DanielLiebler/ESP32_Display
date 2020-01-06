@@ -397,7 +397,7 @@ void checkParams(AsyncWebServerRequest *request) {
     AsyncWebParameter* fname = request->getParam("gif");
     gif_image_t* image = (gif_image_t*) malloc(sizeof(gif_image_t));
     Serial.println("Processing...");
-    heapcheck("1");
+    //heapcheck("1");
     try {
       if (processGif(fname->value(), image)) {
         Serial.println("Showing...");
@@ -409,7 +409,7 @@ void checkParams(AsyncWebServerRequest *request) {
     } catch(const std::exception& e) {
       Serial.println(e.what());
     }
-    heapcheck("end");
+    //heapcheck("end");
   }
 }
 

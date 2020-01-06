@@ -10,8 +10,8 @@
 #define IMAGE_DESCRIPTOR       0x2C
 #define TRAILER                0x3B
 
-void heapcheck(String tag) {
-  Serial.print("Heapcheck ");
+inline void heapcheck(String tag) {
+  /*Serial.print("Heapcheck ");
   Serial.print(tag);
   Serial.print(": ");
   if (heap_caps_check_integrity_all(true)) {
@@ -21,7 +21,7 @@ void heapcheck(String tag) {
     //heap_caps_dump_all();
     Serial.println("\n====================");
     ESP.restart();
-  }
+  }*/
 }
 
 int uncompress( int code_length, const char *input, int input_length, uint8_t *out ) {
@@ -44,14 +44,14 @@ int uncompress( int code_length, const char *input, int input_length, uint8_t *o
   // Create a dictionary large enough to hold "code_length" entries.
   // Once the dictionary overflows, code_length increases
   dictionary = ( dictionary_entry_t * ) malloc( sizeof( dictionary_entry_t ) * ( 1 << ( code_length + 1 ) ) );
-  Serial.print("uncompressing with dict at ");
+  /*Serial.print("uncompressing with dict at ");
   Serial.print((int) dictionary, HEX);
   Serial.print(", clength: ");
   Serial.print(code_length);
   Serial.print(", free: ");
   Serial.print(xPortGetFreeHeapSize());
   Serial.print(", size: ");
-  Serial.println((int) (sizeof(dictionary_entry_t) * (1<<(code_length + 1))));
+  Serial.println((int) (sizeof(dictionary_entry_t) * (1<<(code_length + 1))));*/
 
   // Initialize the first 2^code_len entries of the dictionary with their
   // indices.  The rest of the entries will be built up dynamically.
@@ -215,7 +215,7 @@ static block_list_t* addBlockListEntry(gif_image_t* image) {
     image->lastBlock->next = blockListEntry;
   }
   image->lastBlock = blockListEntry;
-  heapcheck("BL3");
+  //heapcheck("BL3");
   return blockListEntry;
 }
 
@@ -290,7 +290,7 @@ static int process_extension( File gif_file, gif_image_t* image ) {
 
   switch ( blockListEntry->extensionHeader.extension_code ) {
     case GRAPHIC_CONTROL:
-      heapcheck("GCE");
+      //heapcheck("GCE");
       if ( gif_file.readBytes( (char*) &blockListEntry->extensionHeader.gce, 4 ) < 4 ) {
         perror( "Invalid GIF file (too short6): " );
         return 0;
@@ -298,26 +298,26 @@ static int process_extension( File gif_file, gif_image_t* image ) {
 
       break;
     case APPLICATION_EXTENSION:
-      heapcheck("APP");
+      //heapcheck("APP");
       if ( gif_file.readBytes( (char*) &blockListEntry->extensionHeader.app, 11 ) < 11 ) {
         perror( "Invalid GIF file (too short7): " );
         return 0;
       }
       break;
     case 0xFE:
-      heapcheck("Comment");
+      //heapcheck("Comment");
       // comment extension; do nothing - all the data is in the
       // sub-blocks that follow.
       break;
     case 0x01:
-      heapcheck("PTE");
+      //heapcheck("PTE");
       if ( gif_file.readBytes( (char*) &blockListEntry->extensionHeader.pte, 12 ) < 12 ) {
         perror( "Invalid GIF file (too short8): " );
         return 0;
       }
       break;
     default:
-      heapcheck("Default");
+      //heapcheck("Default");
       fprintf( stderr, "Unrecognized extension code.\n" );
       exit( 0 );
   }
@@ -393,8 +393,8 @@ bool process_gif_stream( File gif_file, gif_image_t* image) {
     }
   }
 
-  heapcheck("GIF Postheader");
-  int blockcount = 0;
+  //heapcheck("GIF Postheader");
+  //int blockcount = 0;
   //image.application_extension = ;
 
   while ( block_type != TRAILER ) {
@@ -405,30 +405,30 @@ bool process_gif_stream( File gif_file, gif_image_t* image) {
 
     switch ( block_type ) {
       case IMAGE_DESCRIPTOR:
-        Serial.print("D");
+        //Serial.print("D");
         if ( !process_image_descriptor( gif_file, image->global_color_table, image->global_color_table_size, color_resolution_bits, image ) ) {
           return false;
         }
         break;
       case EXTENSION_INTRODUCER:
-        Serial.print("I");
+        //Serial.print("I");
         if ( !process_extension( gif_file, image ) ) {
           return false;
         }
         break;
       case TRAILER:
-        Serial.print("T");
+        //Serial.print("T");
         return true;
         break;
       default:
-        Serial.print("N");
+        //Serial.print("N");
         fprintf( stderr, "Bailing on unrecognized block type %.02x\n", block_type );
         return false;
     }
-    blockcount++;
-    Serial.print(blockcount);
-    Serial.print(" ");
-    heapcheck("GIF Block");
+    //blockcount++;
+    //Serial.print(blockcount);
+    //Serial.print(" ");
+    //heapcheck("GIF Block");
   }
   return false;
 }
