@@ -116,17 +116,17 @@ void setPixel(int x, int y, pixelColor_t color) {
     break;
   }
 }
-void fillStrip(pixelColor_t color){
+inline void fillStrip(pixelColor_t color){
   strip1.ClearTo(color);
   strip2.ClearTo(color);
   strip3.ClearTo(color);
 }
-void clearStrip(){
+inline void clearStrip(){
   strip1.ClearTo(RgbColor(0, 0, 0));
   strip2.ClearTo(RgbColor(0, 0, 0));
   strip3.ClearTo(RgbColor(0, 0, 0));
 }
-void showStrip(){
+inline void showStrip(){
   //TODO currently not used, due to asyncronous updating of pixels
   //strip.Show();
 }
@@ -271,33 +271,33 @@ String processor(const String& var) {
     return F(" active");
   return String();
 }
-void setDisplayMode(int p){
+inline void setDisplayMode(int p){
   displayMode = p;
 }
-void setClockMode(int p){
+inline void setClockMode(int p){
   clockMode = p;
 }
-void set_Brightness(int p){
+inline void set_Brightness(int p){
   brightness = p;
   printTime();
 }
-void setColor1(pixelColor_t p){
+inline void setColor1(pixelColor_t p){
   myColor1 = p;
   printTime();
 }
-void setColor2(pixelColor_t p){
+inline void setColor2(pixelColor_t p){
   myColor2 = p;
   printTime();
 }
-void setColor3(pixelColor_t p){
+inline void setColor3(pixelColor_t p){
   myColor3 = p;
   printTime();
 }
-void setColor4(pixelColor_t p){
+inline void setColor4(pixelColor_t p){
   myColor4 = p;
   printTime();
 }
-void setColorFull(pixelColor_t p){
+inline void setColorFull(pixelColor_t p){
   colorFull = p;
   printTime();
 }
@@ -364,6 +364,7 @@ void checkParams(AsyncWebServerRequest *request) {
   if(request->hasParam("gif")) {
     AsyncWebParameter* fname = request->getParam("gif");
     gif_image_t* image = (gif_image_t*) malloc(sizeof(gif_image_t));
+    Serial.print("Processing...");
     if (processGif(fname->value(), image)) {
       Serial.println("Showing...");
       Serial.println(image->screen_descriptor.width);

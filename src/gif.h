@@ -91,3 +91,5 @@ typedef struct {
   block_list_t* blocks;
   block_list_t* lastBlock;
 } gif_image_t;
+
+bool process_gif_stream( int gif_file, gif_image_t* image);

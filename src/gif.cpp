@@ -13,7 +13,7 @@
 
 
 int uncompress( int code_length, const unsigned char *input, int input_length, unsigned char *out ) {
-  int maxbits;
+  //int maxbits;
   int i, bit;
   int code, prev = -1;
   dictionary_entry_t *dictionary;
@@ -163,7 +163,7 @@ static int read_sub_blocks( int gif_file, unsigned char **data ) {
 
   while (1) {
     if ( read( gif_file, &block_size, 1 ) < 1 ) {
-      perror( "Invalid GIF file (too short): " );
+      perror( "Invalid GIF file (too short1): " );
       return -1;
     }
 
@@ -176,7 +176,7 @@ static int read_sub_blocks( int gif_file, unsigned char **data ) {
 
     // TODO this could be split across block size boundaries
     if ( read( gif_file, *data + index, block_size ) < block_size ) {
-      perror( "Invalid GIF file (too short): " );
+      perror( "Invalid GIF file (too short2): " );
       return -1;
     }
 
@@ -207,13 +207,13 @@ static int process_image_descriptor( int gif_file, rgb *gct, int gct_size, int r
 
   // TODO there could actually be lots of these
   if ( read( gif_file, &blockListEntry->block.image_descriptor, 9 ) < 9 ) {
-    perror( "Invalid GIF file (too short)" );
+    perror( "Invalid GIF file (too short3)" );
     disposition = 0;
     goto done;
   }
 
   if (blockListEntry->block.image_descriptor.fields && 0x80) {
-    int i;
+    //int i;
     // If bit 7 is set, the next block is a global color table; read it
     blockListEntry->block.local_color_table_size = 1 << 
       ( ( ( blockListEntry->block.image_descriptor.fields & 0x07 ) + 1 ) );
@@ -231,7 +231,7 @@ static int process_image_descriptor( int gif_file, rgb *gct, int gct_size, int r
   disposition = 1;
 
   if ( read( gif_file, &lzw_code_size, 1 ) < 1 ) {
-    perror( "Invalid GIF file (too short): " );
+    perror( "Invalid GIF file (too short4): " );
     disposition = 0;
     goto done;
   }
@@ -260,21 +260,21 @@ static int process_extension( int gif_file, gif_image_t* image ) {
   int extension_data_length;
 
   if ( read( gif_file, &blockListEntry->extensionHeader, 2 ) < 2 ) {
-    perror( "Invalid GIF file (too short): " );
+    perror( "Invalid GIF file (too short5): " );
     return 0;
   }
 
   switch ( blockListEntry->extensionHeader.extension_code ) {
     case GRAPHIC_CONTROL:
       if ( read( gif_file, &blockListEntry->extensionHeader.gce, 4 ) < 4 ) {
-        perror( "Invalid GIF file (too short): " );
+        perror( "Invalid GIF file (too short6): " );
         return 0;
       }
 
       break;
     case APPLICATION_EXTENSION:
       if ( read( gif_file, &blockListEntry->extensionHeader.app, 11 ) < 11 ) {
-        perror( "Invalid GIF file (too short): " );
+        perror( "Invalid GIF file (too short7): " );
         return 0;
       }
       break;
@@ -284,7 +284,7 @@ static int process_extension( int gif_file, gif_image_t* image ) {
       break;
     case 0x01:
       if ( read( gif_file, &blockListEntry->extensionHeader.pte, 12 ) < 12 ) {
-        perror( "Invalid GIF file (too short): " );
+        perror( "Invalid GIF file (too short8): " );
         return 0;
       }
       break;
@@ -308,7 +308,7 @@ static int process_extension( int gif_file, gif_image_t* image ) {
  *  the file when invoked.
  * @param image the gif_image_t object to store the information in
  */
-static bool process_gif_stream( int gif_file, gif_image_t* image) {
+bool process_gif_stream( int gif_file, gif_image_t* image) {
   unsigned char header[ 7 ];
   
   int color_resolution_bits;
@@ -317,7 +317,7 @@ static bool process_gif_stream( int gif_file, gif_image_t* image) {
 
   // A GIF file starts with a Header (section 17)
   if ( read( gif_file, header, 6 ) != 6 ) {
-    perror( "Invalid GIF file (too short)" );
+    perror( "Invalid GIF file (too short9)" );
     return false;
   }
   header[ 6 ] = 0x0;
@@ -339,14 +339,14 @@ static bool process_gif_stream( int gif_file, gif_image_t* image) {
   // Can't use sizeof here since GCC does byte alignment; 
   // sizeof( image.screen_descriptor_t ) = 8!
   if ( read( gif_file, &image->screen_descriptor, 7 ) < 7 ) {
-    perror( "Invalid GIF file (too short)" );
+    perror( "Invalid GIF file (too short10)" );
     return false;
   }
 
   color_resolution_bits = ( ( image->screen_descriptor.fields & 0x70 ) >> 4 ) + 1;
 
   if ( image->screen_descriptor.fields & 0x80 ) {
-    int i;
+    //int i;
     // If bit 7 is set, the next block is a global color table; read it
     image->global_color_table_size = 1 << 
       ( ( ( image->screen_descriptor.fields & 0x07 ) + 1 ) );
@@ -364,7 +364,7 @@ static bool process_gif_stream( int gif_file, gif_image_t* image) {
 
   while ( block_type != TRAILER ) {
     if ( read( gif_file, &block_type, 1 ) < 1 ) {
-      perror( "Invalid GIF file (too short)" );
+      perror( "Invalid GIF file (too short11)" );
       return false;
     }
 
