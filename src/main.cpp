@@ -71,6 +71,9 @@ byte clockMode = clockMode_DEF;
 // (gets initialized in Function)
 digit_t digits[10];
 digit_t digits_small[10];
+cached_animation_t* currentGif;
+int currentGifFrame = 0;
+long nextFrameTime = 0;
 
 //TZ stuff
 Timezone timezone;
@@ -143,6 +146,90 @@ inline void clearStrip(){
 inline void showStrip(){
   //TODO currently not used, due to asyncronous updating of pixels
   //strip.Show();
+}
+
+void pasteBGColor(rgb color, cached_animation_t* gif) {
+  for (size_t x = 0; x < gif->width; x++){
+    for (size_t y = 0; y < gif->height; y++){
+      *(gif->colorData + x + (y*gif->width)) = color;
+    }
+  }
+}
+cached_animation_t* cacheGif(gif_image_t* image) {
+  cached_animation_t* myGif = (cached_animation_t*) calloc(1, sizeof(cached_animation_t));
+  myGif->height = 5;
+  myGif->width = 21;
+  myGif->colorData = (rgb*) malloc((myGif->width * myGif->height)*sizeof(rgb));
+  bool gct = image->screen_descriptor.fields & 0x80;
+  int bgColInd = image->screen_descriptor.background_color_index;
+  rgb bgCol;
+  if (gct) {
+    if (bgColInd < image->global_color_table_size) {
+      bgCol = *(image->global_color_table + bgColInd);
+    } else {
+      bgCol.r = 0;
+      bgCol.g = 0;
+      bgCol.b = 0;
+    }
+  } else {
+    bgCol.r = 0;
+    bgCol.g = 0;
+    bgCol.b = 0;
+  }
+  pasteBGColor(bgCol, myGif);
+  
+  cached_animation_t* gifCursor = myGif;
+  block_list_t* next = image->blocks;
+  while(true) {
+    if (next->isExtension) {
+      switch(next->extensionHeader.extension_code) {
+        case GRAPHIC_CONTROL:
+          Serial.println("Graphic Control Extension");
+          gifCursor->delay = next->extensionHeader.gce.delay_time;
+          gifCursor->next = (cached_animation_t*) calloc(1, sizeof(cached_animation_t));
+          gifCursor->next->height = 5;
+          gifCursor->next->width = 21;
+          gifCursor->next->colorData = (rgb*) malloc((myGif->width * myGif->height)*sizeof(rgb));
+          pasteBGColor(bgCol, gifCursor->next);
+          gifCursor = gifCursor->next;
+        break;
+        case APPLICATION_EXTENSION:
+          Serial.println("Application Extension. skipping...");
+        break;
+        case PLAINTEXT_EXTENSION:
+        break;
+        case COMMENT_EXTENSION:
+        default:
+        break;
+      }
+    } else {
+      Serial.println("Rect-Frame");
+      image_descriptor_t desc = next->block.image_descriptor;
+      for (size_t x = 0; x < desc.image_width; x++) {
+        for (size_t y = 0; y < desc.image_height; y++) {
+          int indice = x + y*desc.image_width;
+          if (indice >= next->block.data_length) break;
+          int ctIndice = *(next->block.decoded_data + indice);
+          rgb colEntry;
+          
+          if (gct) {
+            if (ctIndice >= image->global_color_table_size) return 0;
+            colEntry = *(image->global_color_table + ctIndice);
+          } else {
+            if (ctIndice >= next->block.local_color_table_size) return 0;
+            colEntry = *(next->block.local_color_table + ctIndice);
+          }
+          int globalX = desc.image_left_position + x;
+          int globalY = desc.image_top_position + y;
+          *(gifCursor->colorData + (globalX + (globalY*gifCursor->width))) = colEntry;
+          //pixelColor_t col = colorFromRGB(colEntry.r, colEntry.g, colEntry.b);
+          //setPixel(globalX, globalY, col);
+        }
+      }     
+    }
+    next = next->next;
+    if (next == 0) return myGif;
+  }
 }
 
 void setupLeds() {
@@ -242,8 +329,29 @@ void printTime() {
     //TODO Picture Mode
     break;
   case MODE_GIF:
-      Serial.println("Gif");
     //TODO GIF Mode
+      if (currentGif != 0 && millis() >= nextFrameTime) {
+        cached_animation_t* frame = currentGif;
+        for (size_t i = 0; i < currentGifFrame; i++) {
+          frame = frame->next;
+          if (frame == 0) {
+            frame = currentGif;
+            currentGifFrame = 0;
+            break;
+          }
+        }
+        Serial.print("Frame ");
+        Serial.println(currentGifFrame);
+        clearStrip();
+        for (size_t x = 0; x < frame->width; x++) {
+          for (size_t y = 0; y < frame->height; y++) {
+            rgb col = *(frame->colorData + (x + y*frame->width));
+            setPixel(x, y, colorFromRGB(col.r, col.g, col.b));
+          }
+        }
+        currentGifFrame++;
+        nextFrameTime = millis() + frame->delay*10;
+      }
     break;
   case MODE_TEST:
     Serial.print(timezone.second());
@@ -428,6 +536,9 @@ void checkParams(AsyncWebServerRequest *request) {
         Serial.println("Showing...");
         Serial.println(image->screen_descriptor.width);
         Serial.println(image->screen_descriptor.height);
+        currentGif = cacheGif(image);
+        currentGifFrame = 0;
+        nextFrameTime = 0;
       } else {
         Serial.println("Failed '" + fname->value() + "'");
       }

@@ -93,5 +93,13 @@ typedef struct {
   block_list_t* lastBlock;
 } gif_image_t;
 
+typedef struct cached_animation{
+  uint8_t width;
+  uint8_t height;
+  uint8_t delay;
+  rgb* colorData;
+  struct cached_animation* next;
+} cached_animation_t;
+
 bool process_gif_stream( File gif_file, gif_image_t* image);
 //void heapcheck(String tag);

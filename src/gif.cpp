@@ -208,8 +208,9 @@ static int read_sub_blocks( File gif_file, char **data ) {
 }
 
 static block_list_t* addBlockListEntry(gif_image_t* image) {
-  block_list_t* blockListEntry = (block_list_t*) malloc(sizeof(block_list_t));
-  if (image->lastBlock == NULL) {
+  block_list_t* blockListEntry = (block_list_t*) calloc(1, sizeof(block_list_t));
+  blockListEntry->next = 0;
+  if (image->lastBlock == 0) {
     image->blocks = blockListEntry;
   } else {
     image->lastBlock->next = blockListEntry;
@@ -326,7 +327,7 @@ static int process_extension( File gif_file, gif_image_t* image ) {
   // just a single data sub-block of length 0
   extension_data_length = read_sub_blocks( gif_file, (char**) &blockListEntry->extensionHeader.data );
 
-  if ( blockListEntry->extensionHeader.data != NULL ) free( blockListEntry->extensionHeader.data );
+  //if ( blockListEntry->extensionHeader.data != NULL ) free( blockListEntry->extensionHeader.data );
 
   return 1;
 }
