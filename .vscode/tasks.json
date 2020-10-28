@@ -6,7 +6,7 @@
         {
             "type": "shell",
             "label": "decode Stack Trace of Esp32 with addr2line",
-            "command": "C:\\Users\\Daniel Liebler\\.platformio\\packages\\toolchain-xtensa32\\bin\\xtensa-esp32-elf-addr2line.exe",
+            "command": "C:\\Users\\Daniel\\.platformio\\packages\\toolchain-xtensa32\\bin\\xtensa-esp32-elf-addr2line.exe",
             "args": [
                 "-pfiaC",
                 "-e",
