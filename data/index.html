@@ -15,7 +15,7 @@
         <div class="input-group-prepend">
           <span class="input-group-text">Brightness</span>
         </div>
-        <input type="range" class="form-control custom-range" id="brightness" min="0" max="255" value="%BRIGHTNESS_VALUE%"/>
+        <input type="range" class="form-control custom-range" id="brightness" min="0" max="100" value="%BRIGHTNESS_VALUE%"/>
         <div class="input-group-append">
           <button id="setBrightness" class="btn btn-secondary" type="button" onclick='$.get("/",{brightness: $("#brightness").val()});'>SET</button>
         </div>
@@ -48,8 +48,9 @@
         <div class="input-group-prepend">
           <span class="input-group-text">Alt Modes</span>
         </div>
-        <button type="button" class="btn btn-light form-control" onclick='$.get("/",{displayMode: 3});'>Picture</button>
-        <button type="button" class="btn btn-success form-control" onclick='$.get("/",{displayMode: 4, gif: "/test.gif"});'>Test-Gif</button>
+        <button type="button" class="btn btn-light form-control" onclick='$.get("/",{displayMode: 4, gif: "/test3.gif"});'>Test-Gif (test3.gif)</button>
+        <button type="button" class="btn btn-success form-control" onclick='$.get("/",{displayMode: 4, gif: "/test5.gif"});'>Gradient (test5.gif)</button>
+        <button type="button" class="btn btn-success form-control" onclick='$.get("/",{displayMode: 4, gif: "/firework.gif"});'>Firework</button>
         <button type="button" class="btn btn-danger form-control" onclick='$.get("/",{displayMode: 5});'>Test</button>
         <button type="button" class="btn btn-secondary form-control" onclick='$.get("/",{displayMode: 1});'>OFF</button>
       </div>

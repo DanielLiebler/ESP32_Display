@@ -3,10 +3,9 @@
 #include <ezTime.h>
 #include <WiFi.h>
 #include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
+#include "ESPAsyncWebServer.h"
 #include "SPIFFS.h"
 #include "gif.h"
-//#include "gif.cpp"
 
 #include "pixelDatatypes.h"
 #include <NeoPixelBus.h>
@@ -44,8 +43,8 @@ const int LEDCOUNTPERROW = 21;
 const uint8_t displayMode_DEF = MODE_CLOCK;
 const uint8_t clockMode_DEF = CLOCK_NORMAL_STEADY;
 const uint8_t brightness_DEF = 15;
-const pixelColor_t color1_DEF = colorFromRGB(255, 70, 10);
-const pixelColor_t color2_DEF = colorFromRGB(255, 70, 10);
+const pixelColor_t color1_DEF = colorFromRGB(255, 167, 38);
+const pixelColor_t color2_DEF = colorFromRGB(255, 238, 88);
 const pixelColor_t color3_DEF = colorFromRGB(0, 100, 155);
 const pixelColor_t color4_DEF = colorFromRGB(0, 0, 255);
 const pixelColor_t colorFull_DEF = colorFromRGB(0, 0, 255);
@@ -62,6 +61,8 @@ pixelColor_t myColor2 = color2_DEF;
 pixelColor_t myColor3 = color3_DEF;
 pixelColor_t myColor4 = color4_DEF;
 pixelColor_t colorFull = colorFromRGB(255, 255, 255);
+
+NeoGamma<NeoGammaTableMethod> colorGamma;
 
 //display & clock modes
 byte displayMode = displayMode_DEF;
@@ -101,6 +102,7 @@ volatile SemaphoreHandle_t updateTimeSemaphore;
 }*/
 
 void setStripLed(uint16_t i, pixelColor_t color){
+  color = colorGamma.Correct(color);
   if (i >= LEDCOUNTPERROW*5) return;
   if (i < LEDCOUNTPERROW*2) {
     strip1.SetPixelColor(i, color);
@@ -110,9 +112,10 @@ void setStripLed(uint16_t i, pixelColor_t color){
     strip3.SetPixelColor(i%(LEDCOUNTPERROW*2), color);
   }
 }
-void setPixel(int x, int y, pixelColor_t color) {
+void setPixel(int x, int y, pixelColor_t color, bool correct) {
   if (x > 20) return;
   if (x < 0) return;
+  if (correct) color = colorGamma.Correct(color);
   switch (y) {
   case 0:
     strip1.SetPixelColor(x, color);
@@ -134,6 +137,7 @@ void setPixel(int x, int y, pixelColor_t color) {
   }
 }
 inline void fillStrip(pixelColor_t color){
+  color = colorGamma.Correct(color);
   strip1.ClearTo(color);
   strip2.ClearTo(color);
   strip3.ClearTo(color);
@@ -156,6 +160,7 @@ void pasteBGColor(rgb color, cached_animation_t* gif) {
   }
 }
 cached_animation_t* cacheGif(gif_image_t* image) {
+  //TODO Transparency, verbose mode
   cached_animation_t* myGif = (cached_animation_t*) calloc(1, sizeof(cached_animation_t));
   myGif->height = 5;
   myGif->width = 21;
@@ -204,6 +209,7 @@ cached_animation_t* cacheGif(gif_image_t* image) {
       }
     } else {
       Serial.println("Rect-Frame");
+      int maxCTIndice = 0;
       image_descriptor_t desc = next->block.image_descriptor;
       for (size_t x = 0; x < desc.image_width; x++) {
         for (size_t y = 0; y < desc.image_height; y++) {
@@ -211,21 +217,74 @@ cached_animation_t* cacheGif(gif_image_t* image) {
           if (indice >= next->block.data_length) break;
           int ctIndice = *(next->block.decoded_data + indice);
           rgb colEntry;
-          
+          if (ctIndice > maxCTIndice) maxCTIndice = ctIndice;
+
+          /*
           if (gct) {
             if (ctIndice >= image->global_color_table_size) return 0;
             colEntry = *(image->global_color_table + ctIndice);
           } else {
             if (ctIndice >= next->block.local_color_table_size) return 0;
             colEntry = *(next->block.local_color_table + ctIndice);
+          }*/
+          if (ctIndice < next->block.local_color_table_size) {
+            colEntry = *(next->block.local_color_table + ctIndice);
+          } else if (ctIndice < image->global_color_table_size) {
+            colEntry = *(image->global_color_table + ctIndice);
+          } else {
+            colEntry.r = 255;
+            colEntry.g = 255;
+            colEntry.b = 255;
+            Serial.print("Color not found: ");
+            Serial.println(ctIndice);
           }
+
           int globalX = desc.image_left_position + x;
           int globalY = desc.image_top_position + y;
           *(gifCursor->colorData + (globalX + (globalY*gifCursor->width))) = colEntry;
           //pixelColor_t col = colorFromRGB(colEntry.r, colEntry.g, colEntry.b);
           //setPixel(globalX, globalY, col);
         }
-      }     
+      }
+      Serial.print("GCT:");
+      Serial.print(gct);
+      Serial.print(", GSize:");
+      Serial.print(image->global_color_table_size);
+      Serial.print(", LSize:");
+      Serial.println(next->block.local_color_table_size);
+      /*for (size_t i = 0; i < maxCTIndice; i++) {
+        for (size_t j = 0; j < 3; j++) {
+          uint8_t* adr = (uint8_t*) (next->block.local_color_table + i);
+          if (gct) adr = (uint8_t*) (image->global_color_table + i);
+          Serial.print(i);
+          Serial.print(":");
+          Serial.print( (int) (adr + j) , HEX);
+          Serial.print(".");
+          Serial.println( *(adr + j));
+        }
+      }*/
+      for (size_t i = 0; i < maxCTIndice; i++) {
+        rgb colEntry;
+        if (i < next->block.local_color_table_size) {
+          colEntry = *(next->block.local_color_table + i);
+        } else if (i < image->global_color_table_size) {
+          colEntry = *(image->global_color_table + i);
+        } else {
+          colEntry.r = 255;
+          colEntry.g = 255;
+          colEntry.b = 255;
+          Serial.print("Color not found: ");
+          Serial.println(i);
+        }
+        Serial.print(i);
+        Serial.print(", R"); 
+        Serial.print(colEntry.r); 
+        Serial.print(", G"); 
+        Serial.print(colEntry.g); 
+        Serial.print(", B"); 
+        Serial.print(colEntry.b); 
+        Serial.println(""); 
+      }
     }
     next = next->next;
     if (next == 0) return myGif;
@@ -272,7 +331,7 @@ void printDigit(int digit, int xOffset, pixelColor_t color, digit_t font[]) {
   if (xOffset > 20) return;
   if (xOffset < -3) return;
   for (int i = 0; i < font[digit].pixelCount; i++) {
-    setPixel(xOffset + font[digit].pixels[i].x, font[digit].pixels[i].y, color);
+    setPixel(xOffset + font[digit].pixels[i].x, font[digit].pixels[i].y, color, true);
   }
 }
 
@@ -303,8 +362,8 @@ void printTime() {
       printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits);
       printDigit(timezone.hour() % 10, 5, calcBrightness(brightness,myColor1), digits);
       if (timezone.second()%2 == 0) {
-        setPixel(10, 1, calcBrightness(brightness,myColor2));
-        setPixel(10, 3, calcBrightness(brightness,myColor2));
+        setPixel(10, 1, calcBrightness(brightness,myColor2), true);
+        setPixel(10, 3, calcBrightness(brightness,myColor2), true);
       }
       printDigit(timezone.minute() / 10, 12, calcBrightness(brightness,myColor1), digits);
       printDigit(timezone.minute() % 10, 17, calcBrightness(brightness,myColor1), digits);
@@ -316,8 +375,8 @@ void printTime() {
       clearStrip();
       printDigit(timezone.hour() / 10, 0, calcBrightness(brightness,myColor1), digits);
       printDigit(timezone.hour() % 10, 5, calcBrightness(brightness,myColor1), digits);
-      setPixel(10, 1, calcBrightness(brightness,myColor2));
-      setPixel(10, 3, calcBrightness(brightness,myColor2));
+      setPixel(10, 1, calcBrightness(brightness,myColor2), true);
+      setPixel(10, 3, calcBrightness(brightness,myColor2), true);
       printDigit(timezone.minute() / 10, 12, calcBrightness(brightness,myColor1), digits);
       printDigit(timezone.minute() % 10, 17, calcBrightness(brightness,myColor1), digits);
       showStrip();
@@ -329,7 +388,6 @@ void printTime() {
     //TODO Picture Mode
     break;
   case MODE_GIF:
-    //TODO GIF Mode
       if (currentGif != 0 && millis() >= nextFrameTime) {
         cached_animation_t* frame = currentGif;
         for (size_t i = 0; i < currentGifFrame; i++) {
@@ -340,13 +398,13 @@ void printTime() {
             break;
           }
         }
-        Serial.print("Frame ");
-        Serial.println(currentGifFrame);
+        //Serial.print("Frame ");
+        //Serial.println(currentGifFrame);
         clearStrip();
         for (size_t x = 0; x < frame->width; x++) {
           for (size_t y = 0; y < frame->height; y++) {
             rgb col = *(frame->colorData + (x + y*frame->width));
-            setPixel(x, y, colorFromRGB(col.r, col.g, col.b));
+            setPixel(x, y, colorGamma.Correct(colorFromRGB(col.r, col.g, col.b)), true);
           }
         }
         currentGifFrame++;
@@ -362,11 +420,11 @@ void printTime() {
       setStripLed(timezone.second()+42, colorFromRGB(255, 255, 255));
       setStripLed(timezone.second()+84, colorFromRGB(255, 255, 255));
     } else {
-      setPixel((timezone.second())%21, 0, colorFromRGB(250, 50, 0));
-      setPixel((timezone.second()-1)%21, 1, colorFromRGB(200, 100, 0));
-      setPixel((timezone.second()-2)%21, 2, colorFromRGB(150, 150, 0));
-      setPixel((timezone.second()-3)%21, 3, colorFromRGB(100, 200, 0));
-      setPixel((timezone.second()-4)%21, 4, colorFromRGB(50, 250, 0));
+      setPixel((timezone.second())%21, 0, colorFromRGB(250, 50, 0), true);
+      setPixel((timezone.second()-1)%21, 1, colorFromRGB(200, 100, 0), true);
+      setPixel((timezone.second()-2)%21, 2, colorFromRGB(150, 150, 0), true);
+      setPixel((timezone.second()-3)%21, 3, colorFromRGB(100, 200, 0), true);
+      setPixel((timezone.second()-4)%21, 4, colorFromRGB(50, 250, 0), true);
     }
     break;
   case MODE_FULL_COLOR:
@@ -443,6 +501,20 @@ inline void setClockMode(int p){
   clockMode = p;
 }
 inline void set_Brightness(int p){
+  /*Serial.print("Brightness: R");
+  Serial.print(myColor1.R);
+  Serial.print("/");
+  Serial.print(myColor1.R*p/100);
+  Serial.print("--- G");
+  Serial.print(myColor1.G);
+  Serial.print("/");
+  Serial.print(myColor1.G*p/100);
+  Serial.print("--- B");
+  Serial.print(myColor1.B);
+  Serial.print("/");
+  Serial.print(myColor1.B*p/100);*/
+
+
   brightness = p;
   printTime();
 }
@@ -639,10 +711,10 @@ void setup() {
 void loop() {
 	//events();
   
-  if (xSemaphoreTake(updateTimeSemaphore, 0) == pdTRUE){
-    //printTime();
-    /*portENTER_CRITICAL(&updateStrandMux);
+  /*if (xSemaphoreTake(updateTimeSemaphore, 0) == pdTRUE){
+    printTime();
+    portENTER_CRITICAL(&updateStrandMux);
     strip.Show();
-    portEXIT_CRITICAL(&updateStrandMux);*/
-  }
+    portEXIT_CRITICAL(&updateStrandMux);
+  }*/
 }
